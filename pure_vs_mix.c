@@ -14,7 +14,7 @@ double now_sec(void) {
   return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
 }
 
-uint64_t branch_test2() {
+uint64_t branch_test() {
   uint64_t sum = 0;
 
   for (size_t i = 0; i < N; i++) {
@@ -28,33 +28,37 @@ uint64_t branch_test2() {
   return sum;
 }
 
-uint64_t branch_test1() {
-  uint64_t sum = 0;
+void fill_predictable(uint8_t *data, int n, uint32_t seed) {
+  static uint8_t p[1 << 20];
 
-  for (size_t i = 0; i < N; i++) {
-    if (data1[i]) {
-      sum += 1;
+  size_t period = 1ull << n;
+  uint32_t x = seed;
+
+  if (n == 0) {
+    for (size_t i = 0; i < N; i++) {
+      data[i] = 0;
     }
-    if (data1[i]) {
-      sum += 1;
-    }
+    return;
   }
-  return sum;
-}
 
-void fill_predictable(int n) {
-  uint8_t p[1 << 20];
-  uint32_t x = 3456u;
+  for (size_t i = 0; i < period; i++) {
+    p[i] = i < period / 2 ? 0 : 1;
+  }
 
-  for (size_t i = 0; i < (1u << n); i++) {
+  for (size_t i = period - 1; i > 0; i--) {
     x ^= x << 13;
     x ^= x >> 17;
     x ^= x << 5;
-    p[i] = x & 1;
+
+    size_t j = x & (period - 1);
+
+    uint8_t tmp = p[i];
+    p[i] = p[j];
+    p[j] = tmp;
   }
 
   for (size_t i = 0; i < N; i++) {
-    data1[i] = p[i & ((1u << n) - 1)];
+    data[i] = p[i & (period - 1)];
   }
 }
 
@@ -97,16 +101,17 @@ int main(int argc, char **argv) {
   double start, end;
   uint64_t result = 0;
 
-  fill_predictable(n);
-  fill_unpredictable();
+  if (strcmp(mode, "pure") == 0) {
+    fill_predictable(data1, n, 12345u);
+    fill_predictable(data2, n, 67890u);
+  } else {
+    fill_predictable(data1, n, 12345u);
+    fill_unpredictable();
+  }
 
   for (int r = 0; r < repeat; r++) {
     start = now_sec();
-    if (strcmp(mode, "pure") == 0) {
-      result += branch_test1();
-    } else {
-      result += branch_test2();
-    }
+    result += branch_test();
     end = now_sec();
     printf("result = %10llu, time = %.6f sec\n",
            (unsigned long long)result, end - start);

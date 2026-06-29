@@ -13,7 +13,7 @@ gcc -O2 \
   "$SRC" -o "$BIN"
 
 printf "%6s %8s %9s %14s %10s %6s\n" \
-  "period" "mode" "time[s]" "misses" "if-miss" "IPC"
+  "period" "mode" "time[s]" "misses" "p-miss" "IPC"
 
 printf "%6s %8s %9s %14s %10s %6s\n" \
   "------" "--------" "---------" "--------------" "----------" "------"
@@ -49,21 +49,26 @@ for mode in pure mix; do
     ' <<< "$out")
 
     if [[ "$mode" == "pure" ]]; then
-      target_branches=$((N * REPEAT))
       mode_label="[pure]"
+      p_miss=$(awk -v m="$misses" -v n="$N" -v r="$REPEAT" '
+        BEGIN { printf "%.2f%%", 100.0 * m / (n * r * 2) }
+      ')
     else
-      target_branches=$((N * REPEAT * 2))
       mode_label="[ mix]"
+      p_miss=$(awk -v m="$misses" -v n="$N" -v r="$REPEAT" '
+        BEGIN {
+          pm = m - n * r * 0.5;
+          if (pm < 0) pm = 0;
+          printf "%.2f%%", 100.0 * pm / (n * r);
+        }
+      ')
     fi
-
-    if_miss=$(awk -v m="$misses" -v b="$target_branches" \
-      'BEGIN { printf "%.2f%%", 100.0 * m / b }')
 
     ipc=$(awk -v i="$instructions" -v c="$cycles" \
       'BEGIN { printf "%.2f", i / c }')
 
     printf "%6s %8s %9s %14s %10s %6s\n" \
-      "2^$n" "$mode_label" "$time_sec" "$misses" "$if_miss" "$ipc"
+      "2^$n" "$mode_label" "$time_sec" "$misses" "$p_miss" "$ipc"
   done
 
   if [[ "$mode" == "pure" ]]; then
