@@ -95,27 +95,21 @@ int main(int argc, char **argv) {
   }
 
   double start, end;
-  uint64_t result_pure = 0, result_mix = 0;
+  uint64_t result = 0;
 
   fill_predictable(n);
   fill_unpredictable();
 
   for (int r = 0; r < repeat; r++) {
-    if (strcmp(mode, "mix") != 0) {
-      start = now_sec();
-      result_pure += branch_test1();
-      end = now_sec();
-      printf("pure: result = %10llu, time = %.6f sec\n",
-             (unsigned long long)result_pure, end - start);
+    start = now_sec();
+    if (strcmp(mode, "pure") == 0) {
+      result += branch_test1();
+    } else {
+      result += branch_test2();
     }
-
-    if (strcmp(mode, "pure") != 0) {
-      start = now_sec();
-      result_mix += branch_test2();
-      end = now_sec();
-      printf("mix : result = %10llu, time = %.6f sec\n",
-             (unsigned long long)result_mix, end - start);
-    }
+    end = now_sec();
+    printf("result = %10llu, time = %.6f sec\n",
+           (unsigned long long)result, end - start);
   }
 
   return 0;
