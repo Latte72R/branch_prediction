@@ -26,18 +26,36 @@ uint64_t branch_test(void) {
 }
 
 void fill_predictable(int n) {
-  uint8_t p[1 << 20];
-  uint32_t x = 3456u;
+  static uint8_t p[1 << 20];
+  
+  size_t period = 1ull << n;
+  uint32_t x = 12345u;
 
-  for (size_t i = 0; i < (1u << n); i++) {
+  if (n == 0) {
+    for (size_t i = 0; i < N; i++) {
+      data[i] = 0;
+    }
+    return;
+  }
+
+  for (size_t i = 0; i < period; i++) {
+    p[i] = i < period / 2 ? 0 : 1;
+  }
+
+  for (size_t i = period - 1; i > 0; i--) {
     x ^= x << 13;
     x ^= x >> 17;
     x ^= x << 5;
-    p[i] = x & 1;
+
+    size_t j = x & (period - 1);
+
+    uint8_t tmp = p[i];
+    p[i] = p[j];
+    p[j] = tmp;
   }
 
   for (size_t i = 0; i < N; i++) {
-    data[i] = p[i & ((1u << n) - 1)];
+    data[i] = p[i & (period - 1)];
   }
 }
 
